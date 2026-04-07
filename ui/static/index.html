@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & variables ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:        #f1f5f9;
+  --surface:   #ffffff;
+  --surface2:  #f8fafc;
+  --border:    #e2e8f0;
+  --border2:   #cbd5e1;
+  --accent:    #1e40af;
+  --accent-l:  #3b82f6;
+  --accent-bg: #eff6ff;
+  --red:       #dc2626; --red-bg:    #fef2f2;
+  --orange:    #d97706; --orange-bg: #fffbeb;
+  --yellow:    #b45309; --yellow-bg: #fefce8;
+  --green:     #15803d; --green-bg:  #f0fdf4;
+  --tx1:       #0f172a;
+  --tx2:       #475569;
+  --tx3:       #94a3b8;
+  --mono:      'JetBrains Mono', monospace;
+  --sans:      'Plus Jakarta Sans', sans-serif;
+  --r:         10px;
+  --sh:        0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
+  --sh-md:     0 4px 16px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+  --sh-lg:     0 8px 32px rgba(0,0,0,.12), 0 4px 8px rgba(0,0,0,.06);
+}
+
+html, body { height: 100%; font-family: var(--sans); background: var(--bg); color: var(--tx1); font-size: 14px; line-height: 1.5; }
+a { text-decoration: none; color: inherit; }
+button { font-family: var(--sans); cursor: pointer; border: none; outline: none; }
+input  { font-family: var(--sans); outline: none; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ── Layout ── */
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 230px; min-width: 230px; height: 100vh;
+  background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; box-shadow: var(--sh);
+  z-index: 10;
+}
+.sidebar-logo {
+  display: flex; align-items: center; gap: 11px;
+  padding: 20px 18px 16px; border-bottom: 1px solid var(--border);
+}
+.logo-mark {
+  width: 34px; height: 34px; background: var(--accent); border-radius: 9px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.logo-mark svg { width: 17px; height: 17px; }
+.logo-text { font-size: .88rem; font-weight: 700; color: var(--tx1); letter-spacing: -.02em; }
+.logo-sub  { font-size: .63rem; color: var(--tx3); margin-top: 1px; }
+
+.nav-group { padding: 14px 10px 4px; }
+.nav-label { font-size: .6rem; font-weight: 700; color: var(--tx3); text-transform: uppercase; letter-spacing: .1em; padding: 0 8px; margin-bottom: 3px; }
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 10px; border-radius: 7px;
+  font-size: .82rem; font-weight: 500; color: var(--tx2);
+  cursor: pointer; transition: all .15s; margin-bottom: 1px; background: none; width: 100%;
+}
+.nav-item:hover  { background: var(--bg); color: var(--tx1); }
+.nav-item.active { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.nav-item svg    { width: 15px; height: 15px; flex-shrink: 0; opacity: .7; }
+.nav-item.active svg { opacity: 1; }
+.nav-badge {
+  margin-left: auto; background: var(--red); color: white;
+  font-size: .6rem; font-weight: 700; padding: 1px 6px; border-radius: 10px;
+}
+
+.sidebar-footer { margin-top: auto; padding: 14px 16px; border-top: 1px solid var(--border); }
+.sys-status { font-size: .72rem; color: var(--tx3); display: flex; align-items: center; gap: 6px; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+.footer-stats { font-size: .63rem; color: var(--tx3); margin-top: 4px; }
+
+/* ── Main area ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Topbar ── */
+.topbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 26px; height: 58px; display: flex; align-items: center;
+  justify-content: space-between; box-shadow: var(--sh); flex-shrink: 0; z-index: 5;
+}
+.topbar-left h1 { font-size: 1rem; font-weight: 700; letter-spacing: -.02em; }
+.topbar-left p  { font-size: .7rem; color: var(--tx3); margin-top: 1px; }
+.topbar-right   { display: flex; align-items: center; gap: 10px; }
+.time-chip {
+  font-family: var(--mono); font-size: .7rem; color: var(--tx3);
+  background: var(--bg); border: 1px solid var(--border); padding: 5px 10px; border-radius: 6px;
+}
+.health-chip {
+  font-size: .76rem; font-weight: 600; padding: 5px 12px; border-radius: 6px; border: 1px solid;
+}
+.health-ok   { background: var(--green-bg);  color: var(--green);  border-color: #bbf7d0; }
+.health-warn { background: var(--orange-bg); color: var(--orange); border-color: #fde68a; }
+.health-bad  { background: var(--red-bg);    color: var(--red);    border-color: #fecaca; }
+
+/* ── Content area ── */
+.content { flex: 1; overflow-y: auto; padding: 24px 26px 48px; }
+
+/* ── KPI grid ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 13px; margin-bottom: 22px; }
+.kpi-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 16px 17px; box-shadow: var(--sh); position: relative; overflow: hidden;
+  transition: box-shadow .2s, transform .2s;
+}
+.kpi-card:hover { box-shadow: var(--sh-md); transform: translateY(-1px); }
+.kpi-card::after {
+  content:''; position: absolute; top:0; left:0; right:0; height:3px;
+  background: var(--accent); border-radius: var(--r) var(--r) 0 0;
+}
+.kpi-card.c-red::after    { background: var(--red); }
+.kpi-card.c-orange::after { background: var(--orange); }
+.kpi-card.c-green::after  { background: var(--green); }
+.kpi-card.c-yellow::after { background: var(--yellow); }
+.kpi-label { font-size: .64rem; font-weight: 700; color: var(--tx3); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+.kpi-value { font-size: 1.8rem; font-weight: 700; font-family: var(--mono); line-height: 1; color: var(--tx1); }
+.kpi-sub   { font-size: .66rem; color: var(--tx3); margin-top: 5px; }
+.v-red    { color: var(--red) !important; }
+.v-orange { color: var(--orange) !important; }
+.v-green  { color: var(--green) !important; }
+.v-yellow { color: var(--yellow) !important; }
+.v-accent { color: var(--accent) !important; }
+
+/* ── Section heading ── */
+.sec-heading {
+  font-size: .72rem; font-weight: 700; color: var(--tx2);
+  text-transform: uppercase; letter-spacing: .08em;
+  margin: 22px 0 12px; display: flex; align-items: center; gap: 8px;
+}
+.sec-heading::after { content:''; flex:1; height:1px; background: var(--border); }
+
+/* ── Category cards ── */
+.cat-grid   { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 22px; }
+.cat-card   { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 15px; box-shadow: var(--sh); transition: box-shadow .2s; }
+.cat-card:hover { box-shadow: var(--sh-md); }
+.cat-name   { font-size: .63rem; font-weight: 700; color: var(--tx3); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 5px; }
+.cat-pct    { font-size: 1.3rem; font-weight: 700; font-family: var(--mono); }
+.cat-detail { font-size: .67rem; color: var(--tx3); margin-top: 3px; }
+.bar-track  { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; height: 4px; margin-top: 8px; overflow: hidden; }
+.bar-fill   { height: 100%; border-radius: 3px; transition: width .6s ease; }
+
+/* ── Flagged table ── */
+.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--sh); overflow: hidden; }
+table       { width: 100%; border-collapse: collapse; }
+thead       { background: var(--surface2); }
+th          { font-size: .64rem; font-weight: 700; color: var(--tx3); text-transform: uppercase; letter-spacing: .08em; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th.r        { text-align: right; }
+tbody tr    { border-bottom: 1px solid var(--border); transition: background .12s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--bg); }
+td          { padding: 11px 14px; font-size: .83rem; vertical-align: middle; }
+td.r        { text-align: right; }
+.t-id       { font-family: var(--mono); font-size: .72rem; color: var(--tx3); font-weight: 500; }
+.t-name     { font-weight: 600; color: var(--tx1); }
+.t-sub      { font-size: .68rem; color: var(--tx3); margin-top: 1px; }
+.t-num      { font-family: var(--mono); font-size: .81rem; font-weight: 500; }
+.badge      { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 20px; font-size: .65rem; font-weight: 700; letter-spacing: .04em; white-space: nowrap; }
+.b-crit     { background: var(--red-bg);    color: var(--red);    border: 1px solid #fecaca; }
+.b-high     { background: var(--orange-bg); color: var(--orange); border: 1px solid #fed7aa; }
+.b-med      { background: var(--yellow-bg); color: var(--yellow); border: 1px solid #fde68a; }
+.b-ok       { background: var(--green-bg);  color: var(--green);  border: 1px solid #bbf7d0; }
+
+/* ── Inventory filters ── */
+.filters    { display: flex; gap: 10px; margin-bottom: 14px; }
+.filters select, .filters input {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 7px;
+  padding: 7px 11px; font-size: .82rem; color: var(--tx1); box-shadow: var(--sh);
+  transition: border-color .15s;
+}
+.filters select:focus, .filters input:focus { border-color: var(--accent-l); box-shadow: 0 0 0 3px rgba(59,130,246,.1); }
+.filters input { flex: 1; }
+
+/* ── Empty state ── */
+.empty-state { text-align: center; padding: 3rem 1rem; color: var(--tx3); }
+.empty-icon  { font-size: 2rem; margin-bottom: .5rem; }
+
+/* ── Pages ── */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── Loading skeleton ── */
+.skeleton { background: linear-gradient(90deg, var(--border) 25%, var(--surface2) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; }
+@keyframes shimmer { 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+
+/* ════════════════════════════════════════════
+   AURA — Floating Chat Button + Slide Panel
+   ════════════════════════════════════════════ */
+
+/* FAB */
+.aura-fab {
+  position: fixed; bottom: 28px; right: 28px; z-index: 1000;
+  width: 54px; height: 54px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 4px 16px rgba(30,64,175,.45);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: transform .2s, box-shadow .2s;
+  border: 2px solid rgba(255,255,255,.2);
+}
+.aura-fab:hover { transform: scale(1.1); box-shadow: 0 6px 24px rgba(30,64,175,.55); }
+.aura-fab svg   { width: 24px; height: 24px; }
+.aura-fab-badge {
+  position: absolute; top: -2px; right: -2px;
+  min-width: 18px; height: 18px; background: var(--red); border-radius: 9px;
+  border: 2px solid white; font-size: .6rem; font-weight: 700; color: white;
+  display: flex; align-items: center; justify-content: center; padding: 0 3px;
+}
+
+/* Overlay */
+.aura-overlay {
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(15,23,42,.3);
+  backdrop-filter: blur(3px);
+  opacity: 0; pointer-events: none; transition: opacity .25s;
+}
+.aura-overlay.open { opacity: 1; pointer-events: all; }
+
+/* Panel */
+.aura-panel {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 1000;
+  width: 420px; background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--sh-lg);
+  display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform .3s cubic-bezier(.4,0,.2,1);
+}
+.aura-panel.open { transform: translateX(0); }
+
+/* Panel header */
+.aura-header {
+  background: var(--accent); padding: 16px 18px 14px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.aura-header-left { display: flex; align-items: center; gap: 11px; }
+.aura-av   { width: 38px; height: 38px; background: rgba(255,255,255,.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.aura-av svg { width: 20px; height: 20px; }
+.aura-name  { font-size: .95rem; font-weight: 700; color: white; }
+.aura-tag   { font-size: .67rem; color: rgba(255,255,255,.75); margin-top: 1px; }
+.aura-close {
+  width: 30px; height: 30px; border-radius: 7px;
+  background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.2);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: white; font-size: 16px; transition: background .15s;
+}
+.aura-close:hover { background: rgba(255,255,255,.25); }
+
+/* RAG status */
+.aura-status {
+  padding: 7px 18px; font-size: .68rem; color: var(--tx3);
+  border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 5px;
+  flex-shrink: 0;
+}
+.s-dot { width: 5px; height: 5px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+/* Suggestions */
+.suggestions     { padding: 12px 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.sug-label       { font-size: .62rem; font-weight: 700; color: var(--tx3); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+.sug-grid        { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sug-chip        {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  padding: 7px 10px; font-size: .72rem; font-weight: 500; color: var(--tx2);
+  cursor: pointer; text-align: left; line-height: 1.35; transition: all .15s;
+}
+.sug-chip:hover  { background: var(--accent-bg); border-color: #bfdbfe; color: var(--accent); }
+
+/* Messages */
+.aura-msgs   { flex: 1; overflow-y: auto; padding: 14px 16px; }
+.msg-wrap-u  { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.msg-wrap-a  { display: flex; justify-content: flex-start; margin-bottom: 10px; align-items: flex-start; gap: 8px; }
+.msg-av-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; color: white; font-size: 11px; font-weight: 700; }
+.bubble      { max-width: 85%; padding: 10px 13px; border-radius: 14px; font-size: .83rem; line-height: 1.6; }
+.bubble-u    { background: var(--accent); color: white; border-bottom-right-radius: 3px; }
+.bubble-a    { background: var(--surface2); border: 1px solid var(--border); color: var(--tx1); border-bottom-left-radius: 3px; }
+.bubble-src  { font-size: .63rem; color: var(--tx3); margin-top: 6px; font-family: var(--mono); }
+.chat-empty  { text-align: center; padding: 2.5rem 1.5rem; color: var(--tx3); }
+.chat-empty-icon { font-size: 2.5rem; margin-bottom: .5rem; opacity: .25; }
+.typing-dot  { display: inline-block; width: 6px; height: 6px; background: var(--tx3); border-radius: 50%; margin: 0 2px; animation: blink 1.2s infinite; }
+.typing-dot:nth-child(2) { animation-delay: .2s; }
+.typing-dot:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%,80%,100%{opacity:.2;} 40%{opacity:1;} }
+
+/* Chat controls */
+.aura-controls { display: flex; gap: 6px; padding: 10px 16px 6px; flex-shrink: 0; }
+.ctrl-btn {
+  flex: 1; padding: 6px 10px; border-radius: 7px; font-size: .73rem; font-weight: 500;
+  background: var(--bg); border: 1px solid var(--border); color: var(--tx3);
+  cursor: pointer; transition: all .15s;
+}
+.ctrl-btn:hover { background: var(--red-bg); color: var(--red); border-color: #fecaca; }
+
+/* Chat input */
+.aura-input-wrap { padding: 8px 14px 14px; flex-shrink: 0; border-top: 1px solid var(--border); }
+.aura-input-row  { display: flex; gap: 8px; align-items: center; }
+.aura-input      {
+  flex: 1; background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 22px; padding: 10px 16px; font-size: .83rem; color: var(--tx1);
+  box-shadow: var(--sh); transition: border-color .15s, box-shadow .15s;
+}
+.aura-input:focus { border-color: var(--accent-l); box-shadow: 0 0 0 3px rgba(59,130,246,.1); }
+.aura-send {
+  width: 38px; height: 38px; border-radius: 50%; background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0; transition: all .15s;
+}
+.aura-send:hover { background: #1d3a9e; transform: scale(1.05); }
+.aura-send svg { width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 16 16" fill="none">
+          <rect x="1" y="6" width="14" height="9" rx="1.5" stroke="white" stroke-width="1.5"/>
+          <path d="M5 6V4.5A3 3 0 0 1 11 4.5V6" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="8" cy="10.5" r="1" fill="white"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-text">Inventory Monitor</div>
+        <div class="logo-sub">Operations Intelligence</div>
+      </div>
+    </div>
+
+    <nav class="nav-group">
+      <div class="nav-label">Main</div>
+      <button class="nav-item active" data-page="dashboard">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-item" data-page="inventory">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M2 4h12M2 8h12M2 12h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Inventory
+      </button>
+    </nav>
+
+    <nav class="nav-group">
+      <div class="nav-label">Alerts</div>
+      <button class="nav-item" data-page="alerts" id="alerts-nav">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M8 2L1 14h14L8 2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 7v3M8 12v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Active Alerts
+        <span class="nav-badge" id="alerts-badge" style="display:none"></span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sys-status">
+        <span class="status-dot"></span>
+        <span id="footer-time">Loading…</span>
+      </div>
+      <div class="footer-stats" id="footer-stats">—</div>
+    </div>
+  </aside>
+
+  <!-- ── Main area ── -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 id="page-title">Operations Dashboard</h1>
+        <p>Real-time inventory monitoring</p>
+      </div>
+      <div class="topbar-right">
+        <span class="time-chip" id="topbar-time">—</span>
+        <span class="health-chip" id="health-chip">—</span>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <div class="content">
+
+      <!-- KPI row (always visible) -->
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card"><div class="kpi-label">Loading</div><div class="kpi-value skeleton" style="height:36px;width:60px;margin:4px 0"></div></div>
+        <div class="kpi-card"><div class="kpi-label">Loading</div><div class="kpi-value skeleton" style="height:36px;width:60px;margin:4px 0"></div></div>
+        <div class="kpi-card"><div class="kpi-label">Loading</div><div class="kpi-value skeleton" style="height:36px;width:60px;margin:4px 0"></div></div>
+        <div class="kpi-card"><div class="kpi-label">Loading</div><div class="kpi-value skeleton" style="height:36px;width:60px;margin:4px 0"></div></div>
+        <div class="kpi-card"><div class="kpi-label">Loading</div><div class="kpi-value skeleton" style="height:36px;width:60px;margin:4px 0"></div></div>
+        <div class="kpi-card"><div class="kpi-label">Loading</div><div class="kpi-value skeleton" style="height:36px;width:60px;margin:4px 0"></div></div>
+      </div>
+
+      <!-- Dashboard page -->
+      <div class="page active" id="page-dashboard">
+        <div class="sec-heading">Category health overview</div>
+        <div class="cat-grid" id="cat-grid"></div>
+        <div class="sec-heading">Flagged items — action required</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Item ID</th><th>Item Name</th>
+              <th class="r">Current Stock</th><th class="r">Min. Threshold</th>
+              <th class="r">Days Remaining</th><th class="r">Priority</th>
+            </tr></thead>
+            <tbody id="flagged-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Inventory page -->
+      <div class="page" id="page-inventory">
+        <div class="sec-heading">Full inventory register</div>
+        <div class="filters">
+          <select id="inv-cat"><option value="all">All categories</option></select>
+          <select id="inv-status">
+            <option value="all">All status</option>
+            <option value="flagged">Below threshold</option>
+            <option value="safe">Safe</option>
+          </select>
+          <input id="inv-search" type="text" placeholder="Search by item name or ID…">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>ID</th><th>Item Name</th><th>Category</th>
+              <th class="r">Stock</th><th class="r">Threshold</th>
+              <th class="r">Max Cap.</th><th class="r">Fill %</th>
+              <th class="r">Unit Cost</th><th>Supplier</th><th class="r">Status</th>
+            </tr></thead>
+            <tbody id="inv-tbody"></tbody>
+          </table>
+        </div>
+        <div id="inv-count" style="font-size:.7rem;color:var(--tx3);margin-top:8px;"></div>
+      </div>
+
+      <!-- Alerts page -->
+      <div class="page" id="page-alerts">
+        <div class="sec-heading">Active alerts — flagged items</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Item ID</th><th>Item Name</th>
+              <th class="r">Current Stock</th><th class="r">Min. Threshold</th>
+              <th class="r">Days Remaining</th><th class="r">Priority</th>
+            </tr></thead>
+            <tbody id="alerts-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════ AURA floating chat ════════ -->
+
+<!-- FAB -->
+<button class="aura-fab" id="aura-fab" title="Open Aura AI Assistant">
+  <svg viewBox="0 0 24 24" fill="none">
+    <path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l4.93-1.37C8.42 21.5 10.15 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="white" fill-opacity=".9"/>
+    <path d="M8 10.5h8M8 13.5h5" stroke="#1e40af" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>
+  <span class="aura-fab-badge" id="aura-badge" style="display:none"></span>
+</button>
+
+<!-- Overlay -->
+<div class="aura-overlay" id="aura-overlay"></div>
+
+<!-- Panel -->
+<div class="aura-panel" id="aura-panel">
+  <div class="aura-header">
+    <div class="aura-header-left">
+      <div class="aura-av">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.37 5.07L2 22l4.93-1.37C8.42 21.5 10.15 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z" fill="white" fill-opacity=".9"/>
+          <path d="M8 10.5h8M8 13.5h5" stroke="#1e40af" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="aura-name">Aura</div>
+        <div class="aura-tag">AI Inventory Assistant · LLaMA 3.1</div>
+      </div>
+    </div>
+    <button class="aura-close" id="aura-close">✕</button>
+  </div>
+
+  <div class="aura-status">
+    <span class="s-dot" id="rag-dot" style="background:var(--tx3)"></span>
+    <span id="rag-status-text">Connecting…</span>
+  </div>
+
+  <div class="suggestions">
+    <div class="sug-label">Suggested questions</div>
+    <div class="sug-grid" id="sug-grid"></div>
+  </div>
+
+  <div class="aura-msgs" id="aura-msgs">
+    <div class="chat-empty" id="chat-empty">
+      <div class="chat-empty-icon">💬</div>
+      <div style="font-size:.85rem;font-weight:500;color:var(--tx2);">Ask Aura anything about your inventory</div>
+      <div style="font-size:.72rem;margin-top:5px;">Tap a question above or type below</div>
+    </div>
+  </div>
+
+  <div class="aura-controls" id="aura-controls" style="display:none">
+    <button class="ctrl-btn" id="clear-chat">🗑 Clear chat</button>
+  </div>
+
+  <div class="aura-input-wrap">
+    <div class="aura-input-row">
+      <input class="aura-input" id="aura-input" type="text" placeholder="Message Aura…" autocomplete="off">
+      <button class="aura-send" id="aura-send">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let allInventory = [];
+let chatHistory  = [];
+
+const SUGGESTIONS = [
+  ['🔴', 'Which items are critically low?'],
+  ['💰', 'What is the total reorder value?'],
+  ['📊', 'Which category has the most alerts?'],
+  ['🏭', 'Who supplies the Copper Wire 2mm?'],
+  ['⏱', 'Which item has fewest days left?'],
+  ['📦', 'Show me all Raw Materials status'],
+];
+
+// ── Utilities ──
+function hcol(p){ return p>=90?'var(--green)':(p>=70?'var(--orange)':'var(--red)'); }
+function urgencyBadge(u){
+  const m={CRITICAL:'b-crit CRITICAL',HIGH:'b-high HIGH',MEDIUM:'b-med MEDIUM'};
+  const s=m[u]||'b-ok OK'; const [cls,txt]=s.split(' ');
+  return `<span class="badge ${cls}">${txt}</span>`;
+}
+function fmt(n){ return Number(n).toLocaleString(); }
+
+// ── Clock ──
+function updateClock(){
+  const now=new Date();
+  const ts=now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+
+           '  '+now.toLocaleTimeString('en-GB');
+  document.getElementById('topbar-time').textContent=ts;
+  document.getElementById('footer-time').textContent='System running · '+now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── Navigation ──
+const pages={'dashboard':'Operations Dashboard','inventory':'Inventory Register','alerts':'Active Alerts'};
+document.querySelectorAll('.nav-item').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const p=btn.dataset.page;
+    document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('page-'+p).classList.add('active');
+    document.getElementById('page-title').textContent=pages[p]||p;
+    if(p==='inventory') renderInventoryTable(allInventory);
+    if(p==='alerts') renderAlertsTable();
+  });
+});
+
+// ── Load stats ──
+async function loadStats(){
+  try{
+    const s=await fetch(API+'/api/stats').then(r=>r.json());
+    const hp=s.health_pct||100;
+    const hcls=hp>=90?'health-ok':(hp>=70?'health-warn':'health-bad');
+    document.getElementById('health-chip').className='health-chip '+hcls;
+    document.getElementById('health-chip').textContent='Health: '+hp+'%';
+    document.getElementById('footer-stats').textContent=`${s.total} items · ${s.flagged} flagged · ${hp}% healthy`;
+
+    const cr=s.critical||0;
+    const badge=document.getElementById('alerts-badge');
+    if(cr>0){badge.textContent=cr;badge.style.display='';}else{badge.style.display='none';}
+    document.getElementById('aura-badge').textContent=s.flagged;
+    document.getElementById('aura-badge').style.display=s.flagged>0?'':'none';
+
+    const hcc=hp>=90?'v-green':(hp>=70?'v-orange':'v-red');
+    const hccard=hp>=90?'':(hp>=70?'c-orange':'c-red');
+    const hi=s.flagged-(cr+(s.medium||0));
+    const rv='$'+Number(s.reorder_value||0).toLocaleString('en-US',{maximumFractionDigits:0});
+    const cards=[
+      {lbl:'Total Items',    val:s.total,            sub:'items tracked',          cls:'',       vcls:''},
+      {lbl:'Safe Stock',     val:s.safe,              sub:hp+'% in healthy range',  cls:hccard,   vcls:hcc},
+      {lbl:'Flagged Items',  val:s.flagged,           sub:'below reorder threshold',cls:s.flagged>0?'c-orange':'',vcls:s.flagged>0?'v-orange':''},
+      {lbl:'Critical',       val:cr,                  sub:'immediate action needed', cls:cr>0?'c-red':'',       vcls:cr>0?'v-red':''},
+      {lbl:'High / Medium',  val:(hi>0?hi:0)+' / '+(s.medium||0), sub:'priority split',cls:'c-yellow',vcls:'v-yellow'},
+      {lbl:'Reorder Value',  val:rv,                  sub:'estimated order cost',   cls:'',       vcls:'v-accent'},
+    ];
+    document.getElementById('kpi-grid').innerHTML=cards.map(c=>`
+      <div class="kpi-card ${c.cls}">
+        <div class="kpi-label">${c.lbl}</div>
+        <div class="kpi-value ${c.vcls}">${c.val}</div>
+        <div class="kpi-sub">${c.sub}</div>
+      </div>`).join('');
+  }catch(e){console.error('stats',e);}
+}
+
+// ── Load categories ──
+async function loadCategories(){
+  try{
+    const cats=await fetch(API+'/api/categories').then(r=>r.json());
+    document.getElementById('cat-grid').innerHTML=cats.map(c=>{
+      const col=hcol(c.health_pct);
+      return `<div class="cat-card">
+        <div class="cat-name">${c.name}</div>
+        <div class="cat-pct" style="color:${col}">${c.health_pct}%</div>
+        <div class="cat-detail">${c.safe} of ${c.total} items safe</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${c.health_pct}%;background:${col}"></div></div>
+      </div>`;
+    }).join('');
+    // Populate category filter
+    const sel=document.getElementById('inv-cat');
+    sel.innerHTML='<option value="all">All categories</option>'+
+      cats.map(c=>`<option value="${c.name}">${c.name}</option>`).join('');
+  }catch(e){console.error('cats',e);}
+}
+
+// ── Load flagged ──
+async function loadFlagged(){
+  try{
+    const rows=await fetch(API+'/api/flagged').then(r=>r.json());
+    const html=rows.length===0
+      ?`<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">✅</div><div style="font-weight:600;color:var(--green)">All items within safe stock levels</div></div></td></tr>`
+      :rows.map(r=>{
+        const dc=r.days_left<5?'var(--red)':(r.days_left<10?'var(--orange)':'var(--tx2)');
+        return `<tr>
+          <td><span class="t-id">${r.item_id}</span></td>
+          <td><div class="t-name">${r.item_name}</div><div class="t-sub">${r.category} · ${r.supplier}</div></td>
+          <td class="r"><span class="t-num v-red">${fmt(r.current_stock)}</span></td>
+          <td class="r"><span class="t-num">${fmt(r.reorder_threshold)}</span></td>
+          <td class="r"><span class="t-num" style="color:${dc}">~${r.days_left}d</span></td>
+          <td class="r">${urgencyBadge(r.urgency)}</td>
+        </tr>`;
+      }).join('');
+    document.getElementById('flagged-tbody').innerHTML=html;
+    document.getElementById('alerts-tbody').innerHTML=html;
+  }catch(e){console.error('flagged',e);}
+}
+
+// ── Load inventory ──
+async function loadInventory(){
+  try{
+    allInventory=await fetch(API+'/api/inventory').then(r=>r.json());
+    renderInventoryTable(allInventory);
+  }catch(e){console.error('inv',e);}
+}
+
+function renderInventoryTable(rows){
+  const cat=document.getElementById('inv-cat').value;
+  const sta=document.getElementById('inv-status').value;
+  const srch=document.getElementById('inv-search').value.toLowerCase();
+  let filtered=rows.filter(r=>{
+    if(cat!=='all'&&r.category!==cat) return false;
+    if(sta==='flagged'&&!r.is_flagged) return false;
+    if(sta==='safe'&&r.is_flagged) return false;
+    if(srch&&!r.item_name.toLowerCase().includes(srch)&&!r.item_id.toLowerCase().includes(srch)) return false;
+    return true;
+  });
+  document.getElementById('inv-tbody').innerHTML=filtered.map(r=>`
+    <tr>
+      <td><span class="t-id">${r.item_id}</span></td>
+      <td class="t-name">${r.item_name}</td>
+      <td>${r.category}</td>
+      <td class="r"><span class="t-num ${r.is_flagged?'v-red':''}">${fmt(r.current_stock)}</span></td>
+      <td class="r"><span class="t-num">${fmt(r.reorder_threshold)}</span></td>
+      <td class="r"><span class="t-num">${fmt(r.max_capacity)}</span></td>
+      <td class="r"><span class="t-num">${r.fill_pct}%</span></td>
+      <td class="r">$${Number(r.unit_cost).toFixed(2)}</td>
+      <td>${r.supplier}</td>
+      <td class="r"><span class="badge ${r.is_flagged?'b-crit':'b-ok'}">${r.is_flagged?'⚠ LOW':'✓ OK'}</span></td>
+    </tr>`).join('');
+  document.getElementById('inv-count').textContent=`Showing ${filtered.length} of ${rows.length} items`;
+}
+
+function renderAlertsTable(){
+  // Re-uses flagged data already loaded
+}
+
+// Inventory filter listeners
+['inv-cat','inv-status','inv-search'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',()=>renderInventoryTable(allInventory));
+});
+
+// ── RAG status ──
+async function loadRagStatus(){
+  try{
+    const s=await fetch(API+'/api/rag-status').then(r=>r.json());
+    const ready=s.status==='ready';
+    document.getElementById('rag-dot').style.background=ready?'var(--green)':'var(--red)';
+    document.getElementById('rag-status-text').textContent=`${s.indexed} items indexed · ${s.status}`;
+  }catch(e){}
+}
+
+// ── Aura FAB & panel ──
+const fab     = document.getElementById('aura-fab');
+const overlay = document.getElementById('aura-overlay');
+const panel   = document.getElementById('aura-panel');
+const closeBtn= document.getElementById('aura-close');
+
+function openAura(){
+  panel.classList.add('open');
+  overlay.classList.add('open');
+  fab.style.display='none';
+}
+function closeAura(){
+  panel.classList.remove('open');
+  overlay.classList.remove('open');
+  fab.style.display='';
+}
+
+fab.addEventListener('click', openAura);
+closeBtn.addEventListener('click', closeAura);
+overlay.addEventListener('click', closeAura);
+
+// ── Suggestions ──
+document.getElementById('sug-grid').innerHTML=SUGGESTIONS.map(([icon,txt])=>
+  `<button class="sug-chip" data-q="${txt}">${icon}  ${txt}</button>`
+).join('');
+document.getElementById('sug-grid').addEventListener('click',e=>{
+  const chip=e.target.closest('.sug-chip');
+  if(chip) sendMessage(chip.dataset.q);
+});
+
+// ── Chat ──
+const msgsEl   = document.getElementById('aura-msgs');
+const emptyEl  = document.getElementById('chat-empty');
+const inputEl  = document.getElementById('aura-input');
+const sendBtn  = document.getElementById('aura-send');
+const clearBtn = document.getElementById('clear-chat');
+const ctrlsEl  = document.getElementById('aura-controls');
+
+function appendMsg(role, content, sources){
+  emptyEl.style.display='none';
+  ctrlsEl.style.display='';
+  const wrap=document.createElement('div');
+  if(role==='user'){
+    wrap.className='msg-wrap-u';
+    wrap.innerHTML=`<div class="bubble bubble-u">${escHtml(content)}</div>`;
+  } else {
+    const srcHtml=sources&&sources.length
+      ?`<div class="bubble-src">↳ ${sources.slice(0,4).map(s=>s.item_id).join(' · ')}</div>`:'';
+    wrap.className='msg-wrap-a';
+    wrap.innerHTML=`<div class="msg-av-icon">A</div><div class="bubble bubble-a">${escHtml(content)}${srcHtml}</div>`;
+  }
+  // Remove typing indicator if present
+  const typing=msgsEl.querySelector('.typing-indicator');
+  if(typing) typing.remove();
+  msgsEl.appendChild(wrap);
+  msgsEl.scrollTop=msgsEl.scrollHeight;
+}
+
+function showTyping(){
+  const wrap=document.createElement('div');
+  wrap.className='msg-wrap-a typing-indicator';
+  wrap.innerHTML=`<div class="msg-av-icon">A</div><div class="bubble bubble-a"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>`;
+  msgsEl.appendChild(wrap);
+  msgsEl.scrollTop=msgsEl.scrollHeight;
+}
+
+function escHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+
+async function sendMessage(text){
+  if(!text.trim()) return;
+  appendMsg('user', text);
+  inputEl.value='';
+  showTyping();
+  try{
+    const res=await fetch(API+'/api/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:text, history:chatHistory})
+    }).then(r=>r.json());
+    chatHistory.push({role:'user',content:text});
+    chatHistory.push({role:'assistant',content:res.answer});
+    appendMsg('assistant', res.answer, res.sources);
+  }catch(e){
+    const t=msgsEl.querySelector('.typing-indicator');
+    if(t) t.remove();
+    appendMsg('assistant','Sorry, I could not connect to Aura. Make sure the server is running.');
+  }
+}
+
+sendBtn.addEventListener('click',()=>sendMessage(inputEl.value));
+inputEl.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendMessage(inputEl.value); }});
+clearBtn.addEventListener('click',()=>{
+  chatHistory=[];
+  msgsEl.innerHTML='';
+  msgsEl.appendChild(emptyEl);
+  emptyEl.style.display='';
+  ctrlsEl.style.display='none';
+  fetch(API+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'__reset__',history:[]})}).catch(()=>{});
+});
+
+// ── Initial load + polling ──
+async function refresh(){
+  await Promise.all([loadStats(), loadFlagged(), loadCategories()]);
+  if(allInventory.length===0) await loadInventory();
+}
+
+refresh();
+loadRagStatus();
+setInterval(refresh, 30000);
+setInterval(loadRagStatus, 15000);
+</script>
+</body>
+</html>
