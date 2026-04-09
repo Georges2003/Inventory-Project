@@ -46,7 +46,7 @@ echo.
 :: Step 2 — Index inventory into ChromaDB synchronously before browser opens
 echo  [2/5] Indexing inventory into ChromaDB (please wait)...
 echo  (Make sure Ollama is running in the system tray)
-python rag\run_index_once.py
+python rag\run_indexer_once.py
 if errorlevel 1 (
     echo  [WARNING] Initial indexing failed.
     echo  Make sure Ollama is running then try again.
